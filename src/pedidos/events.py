@@ -1,10 +1,7 @@
-"""
-Eventos do app Pedidos.
-
-Estrutura para emissão de eventos relacionados a pedidos.
-"""
+import logging
 from enum import Enum
-from typing import Any, Dict
+
+logger = logging.getLogger(__name__)
 
 
 class EventoPedido(str, Enum):
@@ -17,15 +14,12 @@ class EventoPedido(str, Enum):
     PEDIDO_CANCELADO = 'pedido.cancelado'
 
 
-def emitir_evento(evento: EventoPedido, payload: Dict[str, Any]) -> None:
-    """
-    Emite um evento de pedido.
+def emitir_evento(evento, payload):
+    """Emite um evento de pedido (loga por enquanto)."""
+    logger.info(
+        "Evento emitido: %s | Payload: %s",
+        evento.value,
+        payload
+    )
     
-    Placeholder para implementação futura com Redis pub/sub, Celery, etc.
-    
-    Args:
-        evento: Tipo do evento
-        payload: Dados do evento
-    """
-    # TODO: Implementar emissão de eventos (Redis pub/sub, Celery, etc.)
-    pass
+    # TODO - Willyam cutrim: Implementar emissão de eventos (Redis pub/sub, Celery, etc.)

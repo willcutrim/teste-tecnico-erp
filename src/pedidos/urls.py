@@ -1,5 +1,7 @@
-from django.urls import path
+from rest_framework.routers import DefaultRouter
+from .views import PedidoViewSet
 
-app_name = 'pedidos'
+router = DefaultRouter()
+router.register('orders', PedidoViewSet, basename='orders')
 
-urlpatterns = []
+urlpatterns = router.urls
