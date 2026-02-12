@@ -1,0 +1,3 @@
+"""
+Serializers do app Pedidos.
+"""
