@@ -1,10 +1,4 @@
-"""
-State Machine para Pedidos.
-
-Controla as transições de status dos pedidos.
-"""
 from enum import Enum
-from typing import Dict, List, Optional
 
 
 class StatusPedido(str, Enum):
@@ -27,12 +21,7 @@ class TransicaoInvalidaError(Exception):
         transicoes_permitidas: Lista de transições válidas a partir do status atual
     """
     
-    def __init__(
-        self,
-        status_atual: str,
-        status_novo: str,
-        transicoes_permitidas: Optional[List[str]] = None
-    ):
+    def __init__(self, status_atual, status_novo, transicoes_permitidas=None):
         self.status_atual = str(status_atual.value if hasattr(status_atual, 'value') else status_atual)
         self.status_novo = str(status_novo.value if hasattr(status_novo, 'value') else status_novo)
         self.transicoes_permitidas = [
@@ -50,8 +39,7 @@ class TransicaoInvalidaError(Exception):
         super().__init__(mensagem)
 
 
-# Mapa de transições válidas: status_atual -> [status_permitidos]
-TRANSICOES: Dict[str, List[str]] = {
+TRANSICOES = {
     StatusPedido.PENDENTE: [
         StatusPedido.CONFIRMADO,
         StatusPedido.CANCELADO,
@@ -87,47 +75,21 @@ class PedidoStateMachine:
             pedido.save()
     """
     
-    def __init__(self, status_atual: str):
-        """
-        Inicializa a máquina de estados.
-        
-        Args:
-            status_atual: Status atual do pedido
-        """
+    def __init__(self, status_atual):
+        """Inicializa a máquina de estados."""
         self.status_atual = status_atual
     
-    def obter_transicoes_permitidas(self) -> List[str]:
-        """
-        Retorna a lista de status para os quais é possível transicionar.
-        
-        Returns:
-            Lista de status permitidos
-        """
+    def obter_transicoes_permitidas(self):
+        """Retorna a lista de status para os quais é possível transicionar."""
         return TRANSICOES.get(self.status_atual, [])
     
-    def pode_transicionar(self, status_novo: str) -> bool:
-        """
-        Verifica se a transição para o novo status é válida.
-        
-        Args:
-            status_novo: Status desejado
-            
-        Returns:
-            True se a transição é válida, False caso contrário
-        """
+    def pode_transicionar(self, status_novo):
+        """Verifica se a transição para o novo status é válida."""
         transicoes_permitidas = self.obter_transicoes_permitidas()
         return status_novo in transicoes_permitidas
     
-    def validar(self, status_novo: str) -> None:
-        """
-        Valida a transição para o novo status.
-        
-        Args:
-            status_novo: Status desejado
-            
-        Raises:
-            TransicaoInvalidaError: Se a transição não for válida
-        """
+    def validar(self, status_novo):
+        """Valida a transição. Lança TransicaoInvalidaError se inválida."""
         if not self.pode_transicionar(status_novo):
             raise TransicaoInvalidaError(
                 status_atual=self.status_atual,
@@ -135,20 +97,10 @@ class PedidoStateMachine:
                 transicoes_permitidas=self.obter_transicoes_permitidas()
             )
     
-    def eh_status_final(self) -> bool:
-        """
-        Verifica se o status atual é um status final (sem transições possíveis).
-        
-        Returns:
-            True se não há transições possíveis, False caso contrário
-        """
+    def eh_status_final(self):
+        """Verifica se o status atual é final (sem transições possíveis)."""
         return len(self.obter_transicoes_permitidas()) == 0
     
-    def pode_cancelar(self) -> bool:
-        """
-        Verifica se o pedido pode ser cancelado a partir do status atual.
-        
-        Returns:
-            True se pode cancelar, False caso contrário
-        """
+    def pode_cancelar(self):
+        """Verifica se o pedido pode ser cancelado a partir do status atual."""
         return StatusPedido.CANCELADO in self.obter_transicoes_permitidas()

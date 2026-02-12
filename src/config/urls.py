@@ -1,13 +1,15 @@
-"""
-URL configuration for ERP - Gestão de Pedidos.
-"""
 from django.contrib import admin
 from django.urls import path, include
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('health/', include('health.urls')),
-    path('api/clientes/', include('clientes.urls')),
-    path('api/produtos/', include('produtos.urls')),
-    path('api/pedidos/', include('pedidos.urls')),
+    path('api/', include('clientes.urls')),
+    path('api/', include('produtos.urls')),
+    path('api/', include('pedidos.urls')),
+    
+    # OpenAPI Schema e Documentação
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
 ]

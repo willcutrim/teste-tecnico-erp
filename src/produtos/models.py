@@ -5,8 +5,6 @@ from common.models import TimestampMixin, SoftDeleteMixin, SoftDeleteManager
 
 
 class ProdutoManager(SoftDeleteManager):
-    """Manager para Produto com soft delete."""
-    
     def ativos(self):
         """Retorna apenas produtos ativos e com estoque."""
         return self.get_queryset().filter(ativo=True)
@@ -85,6 +83,6 @@ class Produto(TimestampMixin, SoftDeleteMixin):
         """Verifica se o produto tem estoque disponível."""
         return self.quantidade_estoque > 0
     
-    def tem_estoque_suficiente(self, quantidade: int) -> bool:
+    def tem_estoque_suficiente(self, quantidade):
         """Verifica se há estoque suficiente para a quantidade solicitada."""
         return self.quantidade_estoque >= quantidade
