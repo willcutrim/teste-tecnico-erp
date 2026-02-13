@@ -12,23 +12,6 @@ class ProdutoViewSet(
     mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
     viewsets.GenericViewSet
 ):
-    """
-    ViewSet para Produto.
-    
-    Permite:
-    - POST /products (criar)
-    - GET /products (listar)
-    - GET /products/:id (detalhar)
-    - PATCH /products/:id/stock (atualizar estoque)
-    
-    Filtros:
-    - ?ativo=true
-    - ?sku=SKU001
-    
-    Ordenação:
-    - ?ordering=preco
-    - ?ordering=-created_at
-    """
     queryset = Produto.objects.all()
     serializer_class = ProdutoSerializer
     
@@ -39,7 +22,6 @@ class ProdutoViewSet(
     
     @action(detail=True, methods=['patch'], url_path='stock')
     def stock(self, request, pk=None):
-        """Atualiza o estoque do produto."""
         produto = self.get_object()
         
         serializer = EstoqueSerializer(data=request.data)

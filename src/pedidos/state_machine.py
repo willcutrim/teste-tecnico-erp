@@ -24,6 +24,7 @@ class TransicaoInvalidaError(Exception):
     def __init__(self, status_atual, status_novo, transicoes_permitidas=None):
         self.status_atual = str(status_atual.value if hasattr(status_atual, 'value') else status_atual)
         self.status_novo = str(status_novo.value if hasattr(status_novo, 'value') else status_novo)
+        # TODO - Willyam cutrim: Melhorar essa conversão depois
         self.transicoes_permitidas = [
             str(s.value if hasattr(s, 'value') else s) for s in (transicoes_permitidas or [])
         ]

@@ -9,24 +9,6 @@ class PedidoNaoEncontradoError(Exception):
 
 
 class AlterarStatusPedidoService:
-    """
-    Serviço responsável por alterar o status de um pedido.
-    
-    Garante:
-    - Atomicidade da operação
-    - Lock pessimista para evitar race conditions
-    - Validação de transição via state machine
-    - Registro de histórico de alterações
-    
-    Exemplo de uso:
-        service = AlterarStatusPedidoService()
-        pedido = service.executar(
-            pedido_id=1,
-            novo_status='confirmado',
-            alterado_por='usuario@email.com'
-        )
-    """
-    
     @transaction.atomic
     def executar(self, pedido_id, novo_status, alterado_por=None):
         
@@ -342,6 +324,3 @@ class CancelarPedidoService:
             status_novo=StatusPedido.CANCELADO,
             alterado_por=cancelado_por
         )
-
-
-
