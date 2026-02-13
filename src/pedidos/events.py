@@ -22,4 +22,4 @@ def emitir_evento(evento, payload):
         payload
     )
     
-    # TODO - Willyam cutrim: Implementar emissão de eventos (Redis pub/sub, Celery, etc.)
+    # TODO - Willyam cutrim: Implementar emissão de eventos (Redis pub/sub, Celery, etc.) esquece ñ papai

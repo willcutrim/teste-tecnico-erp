@@ -22,12 +22,7 @@ class SoftDeleteMixin(models.Model):
     """
     Mixin que adiciona soft delete ao model.
     """
-    deleted_at = models.DateTimeField(
-        'Deletado em',
-        null=True,
-        blank=True,
-        db_index=True
-    )
+    deleted_at = models.DateTimeField('Deletado em', null=True, blank=True, db_index=True)
     
     class Meta:
         abstract = True
@@ -48,12 +43,13 @@ class SoftDeleteMixin(models.Model):
     
     @property
     def is_deleted(self):
+        """Indica se o registro foi soft-deleted."""
         return self.deleted_at is not None
 
 
 class TimestampMixin(models.Model):
     """
-    Mixin that adds created_at and updated_at fields.
+    Mixin para adicionar campos de timestamp aos modelos.
     """
     created_at = models.DateTimeField('Criado em', auto_now_add=True)
     updated_at = models.DateTimeField('Atualizado em', auto_now=True)

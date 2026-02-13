@@ -17,70 +17,32 @@ class StatusPedido(models.TextChoices):
 
 
 class PedidoManager(SoftDeleteManager):
-    """Manager para Pedido com soft delete."""
-    
     def pendentes(self):
-        """Retorna pedidos pendentes."""
         return self.get_queryset().filter(status=StatusPedido.PENDENTE)
     
     def em_andamento(self):
-        """Retorna pedidos em andamento (não finalizados)."""
         return self.get_queryset().exclude(
             status__in=[StatusPedido.ENTREGUE, StatusPedido.CANCELADO]
         )
 
 
 class Pedido(TimestampMixin, SoftDeleteMixin):
-    """
-    Model de Pedido.
-    
-    Representa um pedido realizado por um cliente.
-    """
-    
-    numero = models.CharField(
-        'Número',
-        max_length=30,
-        unique=True,
-        db_index=True,
-        editable=False,
-        help_text='Número único do pedido (gerado automaticamente)'
+    numero = models.CharField('Número', max_length=30, unique=True, db_index=True, editable=False, 
+                              help_text='Número único do pedido (gerado automaticamente)'
+    )
+    cliente = models.ForeignKey('clientes.Cliente', on_delete=models.PROTECT, related_name='pedidos', 
+                                verbose_name='Cliente'
     )
     
-    cliente = models.ForeignKey(
-        'clientes.Cliente',
-        on_delete=models.PROTECT,
-        related_name='pedidos',
-        verbose_name='Cliente'
+    status = models.CharField('Status', max_length=20, choices=StatusPedido.choices, default=StatusPedido.PENDENTE,
+                              db_index=True
     )
-    
-    status = models.CharField(
-        'Status',
-        max_length=20,
-        choices=StatusPedido.choices,
-        default=StatusPedido.PENDENTE,
-        db_index=True
+    valor_total = models.DecimalField('Valor Total', max_digits=12, decimal_places=2, default=Decimal('0.00'),
+                                      validators=[MinValueValidator(Decimal('0.00'))]
     )
-    
-    valor_total = models.DecimalField(
-        'Valor Total',
-        max_digits=12,
-        decimal_places=2,
-        default=Decimal('0.00'),
-        validators=[MinValueValidator(Decimal('0.00'))]
-    )
-    
-    observacoes = models.TextField(
-        'Observações',
-        blank=True,
-        null=True
-    )
-    
-    chave_idempotencia = models.CharField(
-        'Chave de Idempotência',
-        max_length=255,
-        unique=True,
-        db_index=True,
-        help_text='Chave única para evitar pedidos duplicados'
+    observacoes = models.TextField('Observações', blank=True, null=True)
+    chave_idempotencia = models.CharField('Chave de Idempotência', max_length=255, db_index=True, 
+                                          help_text='Chave única para evitar pedidos duplicados'
     )
     
     objects = PedidoManager()
@@ -112,14 +74,12 @@ class Pedido(TimestampMixin, SoftDeleteMixin):
         super().save(*args, **kwargs)
     
     def _gerar_numero(self):
-        """Gera um número único para o pedido."""
         from django.utils import timezone
         timestamp = timezone.now().strftime('%Y%m%d%H%M%S')
         unique_id = uuid.uuid4().hex[:6].upper()
         return f'PED-{timestamp}-{unique_id}'
     
     def calcular_total(self):
-        """Recalcula o valor total do pedido baseado nos itens."""
         total = self.itens.aggregate(
             total=models.Sum('subtotal')
         )['total'] or Decimal('0.00')
@@ -128,44 +88,17 @@ class Pedido(TimestampMixin, SoftDeleteMixin):
 
 
 class ItemPedido(models.Model):
-    """
-    Model de Item do Pedido.
-    
-    Representa um produto incluído em um pedido.
-    """
-    
-    pedido = models.ForeignKey(
-        Pedido,
-        on_delete=models.CASCADE,
-        related_name='itens',
-        verbose_name='Pedido'
+    pedido = models.ForeignKey(Pedido, on_delete=models.CASCADE, related_name='itens', verbose_name='Pedido')
+    produto = models.ForeignKey('produtos.Produto', on_delete=models.PROTECT, related_name='itens_pedido',
+                                verbose_name='Produto'
     )
-    
-    produto = models.ForeignKey(
-        'produtos.Produto',
-        on_delete=models.PROTECT,
-        related_name='itens_pedido',
-        verbose_name='Produto'
+    quantidade = models.PositiveIntegerField('Quantidade', validators=[MinValueValidator(1)])
+    preco_unitario = models.DecimalField('Preço Unitário', max_digits=10, decimal_places=2, 
+                                         validators=[MinValueValidator(Decimal('0.01'))],
+                                         help_text='Preço do produto no momento da compra'
     )
-    
-    quantidade = models.PositiveIntegerField(
-        'Quantidade',
-        validators=[MinValueValidator(1)]
-    )
-    
-    preco_unitario = models.DecimalField(
-        'Preço Unitário',
-        max_digits=10,
-        decimal_places=2,
-        validators=[MinValueValidator(Decimal('0.01'))],
-        help_text='Preço do produto no momento da compra'
-    )
-    
-    subtotal = models.DecimalField(
-        'Subtotal',
-        max_digits=12,
-        decimal_places=2,
-        validators=[MinValueValidator(Decimal('0.01'))]
+    subtotal = models.DecimalField('Subtotal', max_digits=12, decimal_places=2, 
+                                   validators=[MinValueValidator(Decimal('0.01'))]
     )
     
     class Meta:
@@ -199,46 +132,15 @@ class ItemPedido(models.Model):
 
 
 class HistoricoStatusPedido(models.Model):
-    """
-    Model de Histórico de Status do Pedido.
-    
-    Registra todas as mudanças de status de um pedido.
-    """
-    
-    pedido = models.ForeignKey(
-        Pedido,
-        on_delete=models.CASCADE,
-        related_name='historico_status',
-        verbose_name='Pedido'
+    pedido = models.ForeignKey(Pedido, on_delete=models.CASCADE, related_name='historico_status', verbose_name='Pedido')
+    status_anterior = models.CharField('Status Anterior', max_length=20, choices=StatusPedido.choices, null=True, 
+                                       blank=True
     )
-    
-    status_anterior = models.CharField(
-        'Status Anterior',
-        max_length=20,
-        choices=StatusPedido.choices,
-        null=True,
-        blank=True
+    status_novo = models.CharField('Status Novo', max_length=20, choices=StatusPedido.choices)
+    alterado_por = models.CharField('Alterado Por', max_length=255, blank=True, null=True, 
+                                    help_text='Usuário ou sistema que realizou a alteração'
     )
-    
-    status_novo = models.CharField(
-        'Status Novo',
-        max_length=20,
-        choices=StatusPedido.choices
-    )
-    
-    alterado_por = models.CharField(
-        'Alterado Por',
-        max_length=255,
-        blank=True,
-        null=True,
-        help_text='Usuário ou sistema que realizou a alteração'
-    )
-    
-    created_at = models.DateTimeField(
-        'Data da Alteração',
-        auto_now_add=True,
-        db_index=True
-    )
+    created_at = models.DateTimeField('Data da Alteração', auto_now_add=True, db_index=True)
     
     class Meta:
         db_table = 'historico_status_pedido'

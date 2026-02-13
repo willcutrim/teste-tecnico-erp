@@ -3,8 +3,6 @@ from .models import Produto
 
 
 class ProdutoSerializer(serializers.ModelSerializer):
-    """Serializer para Produto."""
-    
     class Meta:
         model = Produto
         fields = [

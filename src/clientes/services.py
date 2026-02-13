@@ -1,3 +1,0 @@
-"""
-Services do app Clientes.
-"""
