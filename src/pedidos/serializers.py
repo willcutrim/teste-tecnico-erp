@@ -28,7 +28,7 @@ class PedidoListSerializer(serializers.ModelSerializer):
 class PedidoDetailSerializer(serializers.ModelSerializer):
     cliente_nome = serializers.CharField(source='cliente.nome', read_only=True)
     itens = ItemPedidoSerializer(many=True, read_only=True)
-    historico = HistoricoStatusSerializer(many=True, read_only=True)
+    historico = HistoricoStatusSerializer(source='historico_status', many=True, read_only=True)
     
     class Meta:
         model = Pedido
