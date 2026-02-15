@@ -2,7 +2,6 @@ import pytest
 from decimal import Decimal
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from django.db import connection
-from django.conf import settings
 
 from pedidos.services import (
     CriarPedidoService,
@@ -11,13 +10,7 @@ from pedidos.services import (
 from pedidos.state_machine import StatusPedido
 
 
-# Helper para verificar se está usando SQLite
-def usando_sqlite():
-    return 'sqlite' in settings.DATABASES['default']['ENGINE']
-
-
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.skipif(usando_sqlite(), reason="SQLite não suporta concorrência adequada")
 class TestConcorrenciaEstoque:
     def test_dois_pedidos_simultaneos_mesmo_produto(self):
        

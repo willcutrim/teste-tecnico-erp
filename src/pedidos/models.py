@@ -60,7 +60,7 @@ class Pedido(TimestampMixin, SoftDeleteMixin):
         ]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(valor_total__gte=Decimal('0.00')),
+                condition=models.Q(valor_total__gte=Decimal('0.00')),
                 name='pedido_valor_total_positivo'
             ),
         ]
@@ -114,11 +114,11 @@ class ItemPedido(models.Model):
                 name='unique_item_pedido_produto'
             ),
             models.CheckConstraint(
-                check=models.Q(quantidade__gte=1),
+                condition=models.Q(quantidade__gte=1),
                 name='item_quantidade_minima'
             ),
             models.CheckConstraint(
-                check=models.Q(subtotal__gte=Decimal('0.01')),
+                condition=models.Q(subtotal__gte=Decimal('0.01')),
                 name='item_subtotal_positivo'
             ),
         ]
