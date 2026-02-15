@@ -1,7 +1,11 @@
 from django.db import transaction
 
-from .models import Pedido, HistoricoStatusPedido
-from .state_machine import PedidoStateMachine, TransicaoInvalidaError
+from .models import StatusPedido
+from .state_machine import PedidoStateMachine
+from .repositories import (
+    PedidoRepository, ItemPedidoRepository, HistoricoStatusPedidoRepository, ClienteRepository,
+    ProdutoRepository,
+)
 
 
 class PedidoNaoEncontradoError(Exception):
@@ -9,6 +13,10 @@ class PedidoNaoEncontradoError(Exception):
 
 
 class AlterarStatusPedidoService:
+    def __init__(self):
+        self.pedido_repository = PedidoRepository()
+        self.historico_repository = HistoricoStatusPedidoRepository()
+    
     @transaction.atomic
     def executar(self, pedido_id, novo_status, alterado_por=None):
         
@@ -19,8 +27,7 @@ class AlterarStatusPedidoService:
         state_machine = PedidoStateMachine(status_anterior)
         state_machine.validar(novo_status)
         
-        pedido.status = novo_status
-        pedido.save(update_fields=['status', 'updated_at'])
+        self.pedido_repository.atualizar_status(pedido, novo_status)
         
         self._registrar_historico(
             pedido=pedido,
@@ -32,15 +39,15 @@ class AlterarStatusPedidoService:
         return pedido
     
     def _obter_pedido_com_lock(self, pedido_id):
-        try:
-            return Pedido.objects.select_for_update().get(id=pedido_id)
-        except Pedido.DoesNotExist:
+        pedido = self.pedido_repository.obter_com_lock(pedido_id)
+        if pedido is None:
             raise PedidoNaoEncontradoError(
                 f"Pedido com ID {pedido_id} não encontrado"
             )
+        return pedido
     
     def _registrar_historico(self, pedido, status_anterior, status_novo, alterado_por):
-        return HistoricoStatusPedido.objects.create(
+        return self.historico_repository.criar(
             pedido=pedido,
             status_anterior=status_anterior,
             status_novo=status_novo,
@@ -85,6 +92,12 @@ class ItensVaziosError(Exception):
 
 
 class CriarPedidoService:
+    def __init__(self):
+        self.pedido_repository = PedidoRepository()
+        self.item_pedido_repository = ItemPedidoRepository()
+        self.cliente_repository = ClienteRepository()
+        self.produto_repository = ProdutoRepository()
+    
     def executar(self, cliente_id, itens, chave_idempotencia, observacoes=None):
         pedido_existente = self._buscar_pedido_por_idempotencia(chave_idempotencia)
         if pedido_existente:
@@ -105,10 +118,7 @@ class CriarPedidoService:
         return pedido, True
     
     def _buscar_pedido_por_idempotencia(self, chave):
-        try:
-            return Pedido.objects.get(chave_idempotencia=chave)
-        except Pedido.DoesNotExist:
-            return None
+        return self.pedido_repository.obter_por_chave_idempotencia(chave)
     
     def _validar_quantidades(self, itens):
         for item in itens:
@@ -121,20 +131,17 @@ class CriarPedidoService:
     
     @transaction.atomic
     def _criar_pedido_atomico(self, cliente_id, itens, chave_idempotencia, observacoes):
-        from clientes.models import Cliente
-        from produtos.models import Produto
-        from .models import ItemPedido, StatusPedido
         from decimal import Decimal
         
-        cliente = self._obter_cliente_ativo(cliente_id, Cliente)
+        cliente = self._obter_cliente_ativo(cliente_id)
         
         produtos_ids = [item['produto_id'] for item in itens]
-        produtos = self._obter_produtos_com_lock(produtos_ids, Produto)
+        produtos = self.produto_repository.obter_por_ids_com_lock(produtos_ids)
         
         produtos_map = {p.id: p for p in produtos}
         self._validar_produtos_e_estoque(itens, produtos_map, produtos_ids)
         
-        pedido = Pedido.objects.create(
+        pedido = self.pedido_repository.criar(
             cliente=cliente,
             status=StatusPedido.PENDENTE,
             chave_idempotencia=chave_idempotencia,
@@ -150,7 +157,7 @@ class CriarPedidoService:
             preco_unitario = produto.preco
             subtotal = preco_unitario * quantidade
             
-            ItemPedido.objects.create(
+            self.item_pedido_repository.criar(
                 pedido=pedido,
                 produto=produto,
                 quantidade=quantidade,
@@ -158,20 +165,18 @@ class CriarPedidoService:
                 subtotal=subtotal
             )
             
-            produto.quantidade_estoque -= quantidade
-            produto.save(update_fields=['quantidade_estoque', 'updated_at'])
+            self.produto_repository.decrementar_estoque(produto, quantidade)
             
             valor_total += subtotal
         
-        pedido.valor_total = valor_total
-        pedido.save(update_fields=['valor_total'])
+        self.pedido_repository.atualizar_valor_total(pedido, valor_total)
         
         return pedido
     
-    def _obter_cliente_ativo(self, cliente_id, Cliente):
-        try:
-            cliente = Cliente.all_objects.get(id=cliente_id)
-        except Cliente.DoesNotExist:
+    def _obter_cliente_ativo(self, cliente_id):
+        cliente = self.cliente_repository.obter_por_id(cliente_id)
+        
+        if cliente is None:
             raise ClienteNaoEncontradoError(
                 f"Cliente com ID {cliente_id} não encontrado"
             )
@@ -187,14 +192,6 @@ class CriarPedidoService:
             )
         
         return cliente
-    
-    def _obter_produtos_com_lock(self, produtos_ids, Produto):
-        return list(
-            Produto.all_objects
-            .select_for_update()
-            .filter(id__in=produtos_ids)
-            .order_by('id')
-        )
     
     def _validar_produtos_e_estoque(self, itens, produtos_map, produtos_ids):
         for item_data in itens:
@@ -232,10 +229,13 @@ class PedidoNaoPodeCancelarError(Exception):
 
 
 class CancelarPedidoService:
+    def __init__(self):
+        self.pedido_repository = PedidoRepository()
+        self.produto_repository = ProdutoRepository()
+        self.historico_repository = HistoricoStatusPedidoRepository()
+    
     @transaction.atomic
     def executar(self, pedido_id, cancelado_por=None, motivo=None):
-        from produtos.models import Produto
-        from .models import StatusPedido
         from .events import EventoPedido, emitir_evento
         
         pedido = self._obter_pedido_com_lock(pedido_id)
@@ -246,18 +246,22 @@ class CancelarPedidoService:
         status_anterior = pedido.status
         self._validar_pode_cancelar(pedido)
         
-        itens = list(pedido.itens.all())
+        itens = self.pedido_repository.obter_itens(pedido)
         
         if itens:
-            produtos = self._obter_produtos_com_lock(itens, Produto)
+            produto_ids = [item.produto_id for item in itens]
+            produtos = self.produto_repository.obter_por_ids_com_lock(produto_ids)
             produtos_map = {p.id: p for p in produtos}
             
             self._devolver_estoque(itens, produtos_map)
         
-        pedido.status = StatusPedido.CANCELADO
+        observacoes = pedido.observacoes
         if motivo:
-            pedido.observacoes = f"{pedido.observacoes or ''}\n[CANCELAMENTO] {motivo}".strip()
-        pedido.save(update_fields=['status', 'observacoes', 'updated_at'])
+            observacoes = f"{observacoes or ''}\n[CANCELAMENTO] {motivo}".strip()
+        
+        self.pedido_repository.atualizar_status_e_observacoes(
+            pedido, StatusPedido.CANCELADO, observacoes
+        )
         
         self._registrar_historico(
             pedido=pedido,
@@ -280,16 +284,14 @@ class CancelarPedidoService:
         return pedido
     
     def _obter_pedido_com_lock(self, pedido_id):
-        try:
-            return Pedido.objects.select_for_update().get(id=pedido_id)
-        except Pedido.DoesNotExist:
+        pedido = self.pedido_repository.obter_com_lock(pedido_id)
+        if pedido is None:
             raise PedidoNaoEncontradoError(
                 f"Pedido com ID {pedido_id} não encontrado"
             )
+        return pedido
     
     def _validar_pode_cancelar(self, pedido):
-        from .models import StatusPedido
-        
         state_machine = PedidoStateMachine(pedido.status)
         
         if not state_machine.pode_cancelar():
@@ -299,26 +301,14 @@ class CancelarPedidoService:
                 f"Transições permitidas: {state_machine.obter_transicoes_permitidas()}"
             )
     
-    def _obter_produtos_com_lock(self, itens, Produto):
-        produto_ids = [item.produto_id for item in itens]
-        return list(
-            Produto.all_objects
-            .select_for_update()
-            .filter(id__in=produto_ids)
-            .order_by('id')
-        )
-    
     def _devolver_estoque(self, itens, produtos_map):
         for item in itens:
             produto = produtos_map.get(item.produto_id)
             if produto:
-                produto.quantidade_estoque += item.quantidade
-                produto.save(update_fields=['quantidade_estoque', 'updated_at'])
+                self.produto_repository.incrementar_estoque(produto, item.quantidade)
     
     def _registrar_historico(self, pedido, status_anterior, cancelado_por):
-        from .models import StatusPedido
-        
-        return HistoricoStatusPedido.objects.create(
+        return self.historico_repository.criar(
             pedido=pedido,
             status_anterior=status_anterior,
             status_novo=StatusPedido.CANCELADO,
