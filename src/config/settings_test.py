@@ -1,11 +1,22 @@
-from config.settings import *  # noqa
+from config.settings import *
+import os
 
 
-# Usa SQLite em memória para testes
+# Usa MySQL do Docker para testes
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': ':memory:',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.environ.get('MYSQL_DATABASE', 'erp_pedidos'),
+        'USER': os.environ.get('MYSQL_USER', 'erp_user'),
+        'PASSWORD': os.environ.get('MYSQL_PASSWORD', 'erp_password'),
+        'HOST': os.environ.get('MYSQL_HOST', 'mysql'),
+        'PORT': os.environ.get('MYSQL_PORT', '3306'),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+        },
+        'TEST': {
+            'NAME': 'test_erp_pedidos',
+        },
     }
 }
 
