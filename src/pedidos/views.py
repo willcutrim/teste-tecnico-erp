@@ -89,9 +89,11 @@ class PedidoViewSet(
                 novo_status=serializer.validated_data['status'],
                 alterado_por=request.user.username if request.user.is_authenticated else None,
             )
+
+            serializer = PedidoDetailSerializer(pedido)
             
             return Response(
-                PedidoDetailSerializer(pedido).data,
+                serializer.data,
                 status=status.HTTP_200_OK
             )
             
@@ -120,8 +122,9 @@ class PedidoViewSet(
                 motivo=request.data.get('motivo'),
             )
             
+            serializer = PedidoDetailSerializer(pedido)
             return Response(
-                PedidoDetailSerializer(pedido).data,
+                serializer.data,
                 status=status.HTTP_200_OK
             )
             

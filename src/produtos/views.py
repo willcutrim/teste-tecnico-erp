@@ -29,8 +29,10 @@ class ProdutoViewSet(
         
         produto.quantidade_estoque = serializer.validated_data['quantidade']
         produto.save(update_fields=['quantidade_estoque', 'updated_at'])
+
+        serializer = ProdutoSerializer(produto)
         
         return Response(
-            ProdutoSerializer(produto).data,
+            serializer.data,
             status=status.HTTP_200_OK
         )
