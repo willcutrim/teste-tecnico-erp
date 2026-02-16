@@ -43,36 +43,37 @@ class PedidoViewSet(
                 chave_idempotencia=data['idempotency_key'],
                 observacoes=data.get('observacoes'),
             )
+            serializer = PedidoDetailSerializer(pedido)
             
             response_status = status.HTTP_201_CREATED if criado else status.HTTP_200_OK
             return Response(
-                PedidoDetailSerializer(pedido).data,
+                serializer.data,
                 status=response_status
             )
             
-        except (ClienteNaoEncontradoError, ProdutoNaoEncontradoError) as e:
+        except (ClienteNaoEncontradoError, ProdutoNaoEncontradoError) as err:
             return Response(
-                {'error': str(e)},
+                {'error': str(err)},
                 status=status.HTTP_404_NOT_FOUND
             )
-        except (ClienteInativoError, ProdutoInativoError) as e:
+        except (ClienteInativoError, ProdutoInativoError) as err:
             return Response(
-                {'error': str(e)},
+                {'error': str(err)},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        except EstoqueInsuficienteError as e:
+        except EstoqueInsuficienteError as err:
             return Response(
                 {
-                    'error': str(e),
-                    'produto_id': e.produto_id,
-                    'disponivel': e.disponivel,
-                    'solicitado': e.solicitado,
+                    'error': str(err),
+                    'produto_id': err.produto_id,
+                    'disponivel': err.disponivel,
+                    'solicitado': err.solicitado,
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
-        except (ItensVaziosError, QuantidadeInvalidaError) as e:
+        except (ItensVaziosError, QuantidadeInvalidaError) as err:
             return Response(
-                {'error': str(e)},
+                {'error': str(err)},
                 status=status.HTTP_400_BAD_REQUEST
             )
     
@@ -88,24 +89,26 @@ class PedidoViewSet(
                 novo_status=serializer.validated_data['status'],
                 alterado_por=request.user.username if request.user.is_authenticated else None,
             )
+
+            serializer = PedidoDetailSerializer(pedido)
             
             return Response(
-                PedidoDetailSerializer(pedido).data,
+                serializer.data,
                 status=status.HTTP_200_OK
             )
             
-        except PedidoNaoEncontradoError as e:
+        except PedidoNaoEncontradoError as err:
             return Response(
-                {'error': str(e)},
+                {'error': str(err)},
                 status=status.HTTP_404_NOT_FOUND
             )
-        except TransicaoInvalidaError as e:
+        except TransicaoInvalidaError as err:
             return Response(
                 {
-                    'error': str(e),
-                    'status_atual': e.status_atual,
-                    'status_novo': e.status_novo,
-                    'transicoes_permitidas': e.transicoes_permitidas,
+                    'error': str(err),
+                    'status_atual': err.status_atual,
+                    'status_novo': err.status_novo,
+                    'transicoes_permitidas': err.transicoes_permitidas,
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
@@ -119,18 +122,19 @@ class PedidoViewSet(
                 motivo=request.data.get('motivo'),
             )
             
+            serializer = PedidoDetailSerializer(pedido)
             return Response(
-                PedidoDetailSerializer(pedido).data,
+                serializer.data,
                 status=status.HTTP_200_OK
             )
             
-        except PedidoNaoEncontradoError as e:
+        except PedidoNaoEncontradoError as err:
             return Response(
-                {'error': str(e)},
+                {'error': str(err)},
                 status=status.HTTP_404_NOT_FOUND
             )
-        except PedidoNaoPodeCancelarError as e:
+        except PedidoNaoPodeCancelarError as err:
             return Response(
-                {'error': str(e)},
+                {'error': str(err)},
                 status=status.HTTP_400_BAD_REQUEST
             )

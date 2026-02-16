@@ -4,10 +4,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from django.db import connection
 
 from pedidos.services import (
-    CriarPedidoService,
-    EstoqueInsuficienteError,
+    CriarPedidoService, EstoqueInsuficienteError,
 )
-from pedidos.state_machine import StatusPedido
 
 
 @pytest.mark.django_db(transaction=True)
@@ -48,8 +46,8 @@ class TestConcorrenciaEstoque:
                     chave_idempotencia=chave
                 )
                 return 'sucesso'
-            except EstoqueInsuficienteError as e:
-                erros.append(str(e))
+            except EstoqueInsuficienteError as err:
+                erros.append(str(err))
                 return 'falha'
         
         # Executa dois pedidos em paralelo
